@@ -1,0 +1,10 @@
+../.idea
+
+
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+*.cmd

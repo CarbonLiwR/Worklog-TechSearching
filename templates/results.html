@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>搜索结果</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow-y: hidden; /* 防止页面滚动 */
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .main-container {
+            display: flex;
+            width: 90%;
+            height: 90%;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden; /* 防止内容溢出 */
+        }
+
+        .left-container, .right-container {
+            padding: 20px;
+            border: 1px solid #ccc;
+            overflow-y: auto; /* 使左边和右边内容可以滚动 */
+        }
+
+        .left-container {
+            width: 60%;
+            border-right: none;
+            height: 100%;
+        }
+
+        .right-container {
+            width: 40%;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            height: 96%;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #333333;
+            margin-bottom: 20px;
+        }
+
+        .result-item {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .result-item p {
+            margin: 5px 0;
+        }
+
+        .result-item strong {
+            color: #4285f4;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #4285f4;
+            font-size: 16px;
+        }
+
+        .back-button svg {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fff;
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 10px; /* 使输入框适当向上 */
+            max-height: calc(100% - 110px); /* 调整高度，使其适当减少 */
+        }
+
+        .chat-input {
+            display: flex;
+            margin-top: 10px;
+        }
+
+        .chat-input textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+            resize: none; /* 防止用户调整大小 */
+            overflow-y: auto;
+            height: 40px; /* 固定高度 */
+        }
+
+        .chat-input button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4285f4;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .keyword {
+            color: lightblue; /* 设置关键词为淡蓝色 */
+            font-weight: bold; /* 设置字体加粗 */
+        }
+
+        .chat-message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            word-wrap: break-word; /* 强制长单词换行 */
+            word-break: break-word; /* 防止长单词溢出容器 */
+            white-space: pre-wrap; /* 保留空格和换行符 */
+        }
+
+        .chat-message.user {
+            background-color: #e1f5fe;
+            align-self: flex-end;
+        }
+
+        .chat-message.bot {
+            background-color: #fff9c4;
+            align-self: flex-start;
+        }
+
+        .loading {
+            font-style: italic;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<a href="/" class="back-button">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round"/>
+    </svg>
+    新搜索
+</a>
+<div class="main-container">
+    <div class="left-container">
+        <h1>搜索 "{{ query }}" 的结果</h1>
+        <div>
+            {% if results %}
+            <ul>
+                {% for result in results %}
+                <li class="result-item">
+                    <p>{{ result|safe }}</p> <!-- 使用 safe 过滤器来渲染HTML -->
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>未找到结果。</p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="right-container">
+        <h1>AI问答</h1>
+        <div class="chat-container" id="chat-container"></div>
+        <div class="chat-input">
+            <textarea id="chat-input" rows="1" placeholder="问我任何问题..."></textarea>
+            <button onclick="sendMessage()">发送</button>
+        </div>
+    </div>
+</div>
+<script>
+    let loadingInterval;
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+        const query = "{{ query }}";
+        if (query) {
+            const input = document.getElementById('chat-input');
+            input.value = query;
+            sendMessage();
+        }
+
+        const chatInput = document.getElementById('chat-input');
+        chatInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // 阻止默认的换行行为
+                sendMessage();      // 调用发送消息函数
+            }
+        });
+    });
+
+    async function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        if (message === '') return;
+
+        addMessage('user', message);
+        input.value = '';
+        input.style.height = '40px'; // 重置高度
+
+        // 获取页面上的前3个工作日志内容
+        const logs = Array.from(document.querySelectorAll('.result-item p')).slice(0, 3).map(p => p.innerText);
+
+        // 添加“正在思考...”消息
+        const loadingMessage = addMessage('bot', '正在思考');
+        startLoadingAnimation(loadingMessage);
+
+        // 调用后端API
+        try {
+            const response = await fetch('/api/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({question: message, top_logs: logs}), // 发送问题和前三个日志
+            });
+            const data = await response.json();
+            if (data.answer) {
+                loadingMessage.innerText = data.answer;  // 使用返回的answer字段
+            } else {
+                loadingMessage.innerText = '这是AI的回答。';
+            }
+            stopLoadingAnimation();
+        } catch (error) {
+            console.error('Error:', error);
+            loadingMessage.innerText = 'AI回答失败，请稍后再试。';
+            stopLoadingAnimation();
+        }
+    }
+
+    function addMessage(sender, text) {
+        const chatContainer = document.getElementById('chat-container');
+        const messageElement = document.createElement('div');
+        messageElement.className = 'chat-message ' + sender;
+        messageElement.innerText = text;
+        chatContainer.appendChild(messageElement);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        return messageElement;
+    }
+
+    function startLoadingAnimation(messageElement) {
+        let dots = 0;
+        loadingInterval = setInterval(() => {
+            dots = (dots + 1) % 4;
+            messageElement.innerText = '正在思考' + '.'.repeat(dots);
+        }, 500);
+    }
+
+    function stopLoadingAnimation() {
+        clearInterval(loadingInterval);
+    }
+</script>
+</body>
+</html>

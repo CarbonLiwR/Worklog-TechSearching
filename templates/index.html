@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>技术寻人搜索引擎</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            z-index: 1; /* 调整为较低的 z-index */
+            position: absolute; /* 设置为绝对定位 */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right, #15ccff, #7772ff);
+        }
+
+        h1 {
+            font-size: 72px; /* 调整字体大小 */
+            background: -webkit-linear-gradient(rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.6));
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 40px; /* 增大标题与搜索框之间的距离 */
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), /* 更轻的底部阴影 */ 0 2px 4px rgba(255, 255, 255, 0.7); /* 更亮的顶部高光 */
+        }
+
+        h7 {
+            position: relative;
+            top: -120px;
+            right: -180px;
+            color: white;
+            margin-top: 20px;
+        }
+
+        .search-container {
+            width: 40%; /* 调整搜索容器宽度 */
+            position: relative;
+            z-index: 2; /* 确保其 z-index 高于 canvas */
+            top: -100px; /* 上移位置 */
+        }
+
+        .search-container form {
+            display: flex;
+            align-items: center;
+        }
+
+        .search-container input[type="text"], .search-container input[type="submit"] {
+            padding: 12px 24px;
+            border: 1px solid #5F6368; /* 输入框边框颜色 */
+            background: #34495e;
+            color: #ecf0f1;
+            font-size: 16px;
+        }
+
+        .search-container input[type="text"] {
+            border-radius: 24px 0 0 24px;
+            flex-grow: 1;
+        }
+
+        .search-container input[type="text"]:focus {
+            border-color: #5F6368; /* 保持与非聚焦状态相同的边框颜色 */
+            outline: none; /* 防止浏览器默认的焦点轮廓出现 */
+        }
+
+        .search-container input[type="submit"] {
+            border-radius: 0 24px 24px 0;
+            border-left: none; /* 移除两个输入框之间的边框 */
+        }
+
+        .search-container input[type="submit"]:hover {
+            background-color: #2c3e50; /* 深蓝色 */
+            color: #bdc3c7; /* 淡灰色 */
+        }
+
+        .action-buttons {
+            display: flow;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 30px;
+        }
+
+        .bottom-button {
+            padding: 10px 20px;
+            border-color: #ecf0f1;
+            border-width: 1px;
+            background-color: #34495e; /* 深蓝灰色 */
+            color: #ecf0f1; /* 亮白色 */
+            margin-inline: 10px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .bottom-button:hover {
+            background-color: #2c3e50; /* 深蓝色 */
+            color: #bdc3c7; /* 淡灰色 */
+        }
+    </style>
+</head>
+<body>
+
+<div class="search-container">
+    <h1>技术寻人</h1>
+    <form action="/search">
+        <input type="text" name="q" placeholder="搜索日志...">
+        <input type="submit" value="search">
+    </form>
+    <div class="action-buttons">
+        <a href="/addlogs" class="bottom-button"><span>&#43;</span> add logs</a>
+        <a href="/showlogs" class="bottom-button"><span>&#128065;</span> show logs</a>
+    </div>
+
+</div>
+
+<canvas id="myCanvas"></canvas> <!-- 将 canvas 放在后面 -->
+
+<script>
+    const canvas = document.getElementById("myCanvas");
+    const ctx = canvas.getContext("2d");
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const particles = [];
+    const connections = [];
+    const particleCount = 300; // 粒子数量
+    const particleSpeed = 0.25; // 粒子移动速度
+    const particleSize = 2; // 粒子大小
+    const maxDistance = 100; // 粒子连线的最大距离
+    const lightningColor = "#fff"; // 粒子连线的颜色
+
+    // 创建粒子类
+    class Particle {
+        constructor() {
+            this.x = Math.random() * width;
+            this.y = Math.random() * height;
+            this.color = "#fff";
+            this.angle = Math.random() * 360;
+            this.speed = Math.random() * particleSpeed;
+            this.opacity = Math.random() * 0.5 + 0.5;
+        }
+
+        update() {
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed;
+
+            // 如果粒子超出画布范围，则重新随机设置位置
+            if (this.x < 0 || this.x > width || this.y < 0 || this.y > height) {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+            }
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, particleSize, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+            ctx.fill();
+        }
+    }
+
+    // 创建粒子数组
+    function createParticles() {
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
+    }
+
+    // 绘制粒子之间的连线
+    function drawConnections() {
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < maxDistance) {
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.strokeStyle = lightningColor;
+                    ctx.lineWidth = 0.2 * (1 - distance / maxDistance);
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+            }
+        }
+    }
+
+    // 动画循环
+    function animate() {
+        ctx.clearRect(0, 0, width, height);
+
+        for (const particle of particles) {
+            particle.update();
+            particle.draw();
+        }
+
+        drawConnections();
+
+        requestAnimationFrame(animate);
+    }
+
+    // 监听鼠标移动事件，根据鼠标位置更新粒子运动状态
+    document.addEventListener("mousemove", (e) => {
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+
+        for (const particle of particles) {
+            const dx = mouseX - particle.x;
+            const dy = mouseY - particle.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < maxDistance) {
+                particle.angle = Math.atan2(dy, dx);
+                particle.speed = 5;
+            } else {
+                particle.speed = Math.random() * particleSpeed;
+            }
+        }
+    });
+
+    // 初始化粒子数组并启动动画
+    createParticles();
+    animate();
+</script>
+</body>
+</html>
